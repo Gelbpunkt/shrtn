@@ -45,7 +45,7 @@ fn get(
     pool: web::Data<db::PgPool>,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let name = format!("https://idlerpg.xyz/{}", *path);
+    let name = format!("{}", *path);
     let target;
     match cache.lock().unwrap().get(&name) {
         None => match db::get_link(name.clone(), &pool) {
@@ -71,11 +71,11 @@ fn create(
     let url = (&form.url).to_string();
     let rand_string: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
     let new_url;
-    if url.matches(".").count() > 1 {
+    if url.split("/").last().unwrap().matches(".").count() > 0 {
         let ext = url.split(".").last().unwrap();
-        new_url = format!("https://idlerpg.xyz/{}.{}", rand_string, ext);
+        new_url = format!("{}.{}", rand_string, ext);
     } else {
-        new_url = format!("https://idlerpg.xyz/{}", rand_string);
+        new_url = format!("{}", rand_string);
     }
     cache.lock().unwrap().insert(new_url.clone(), url.clone());
     db::create_link(new_url.clone(), url.clone(), &pool).unwrap();
