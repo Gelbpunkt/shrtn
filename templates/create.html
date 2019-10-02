@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>shrtn v1</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+      integrity="sha256-pasqAKBDmFT4eHoN2ndd6lN370kFiGUFyTiUHWhU7k8="
+      crossorigin="anonymous"
+    ></script>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1 class="display-4">shrtn</h1>
+      <div class="input-group">
+        <input
+          id="url"
+          class="form-control form-control-lg"
+          type="text"
+          placeholder="Your link"
+          value="{{ url }}"
+        />
+        <div class="input-group-append">
+          <button
+            type="submit"
+            id="copy"
+            class="btn btn-primary"
+            onclick="copyToClipboard()"
+          >
+            Copy!
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function copyToClipboard() {
+        $("#url").select();
+        document.execCommand("copy");
+        $("#copy").addClass("btn-success");
+        $("#copy").text("Copied!");
+      }
+    </script>
+  </body>
+</html>
