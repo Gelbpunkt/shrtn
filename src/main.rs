@@ -72,7 +72,7 @@ fn create(
     let url = (&form.url).to_string();
     let rand_string: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
     let new_url;
-    if url.split("/").last().unwrap().matches(".").count() > 0 {
+    if url.matches("/").count() > 2 && url.split("/").last().unwrap().matches(".").count() > 0 {
         let ext = url.split(".").last().unwrap();
         new_url = format!("{}.{}", rand_string, ext);
     } else {
