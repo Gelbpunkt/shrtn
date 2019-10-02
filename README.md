@@ -18,7 +18,7 @@ createdb links
 psql links <(curl -s schema_url)
 exit
 exit
-podman run --rm --name shrtn-main --pod shrtn shrtn:latest
+podman run --rm --name shrtn-main --env-file .env --pod shrtn shrtn:latest
 ```
 
 ### Unrecommended (normal)
@@ -26,6 +26,7 @@ podman run --rm --name shrtn-main --pod shrtn shrtn:latest
 ```
 # setup db before
 cargo build --release
+export $(cat .env | xargs)
 ./target/release/shrtn
 ```
 

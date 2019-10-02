@@ -11,6 +11,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::env;
 use std::sync::Mutex;
 
 mod db;
@@ -80,10 +81,12 @@ fn create(
     cache.lock().unwrap().insert(new_url.clone(), url.clone());
     db::create_link(new_url.clone(), url.clone(), &pool).unwrap();
     let temp = Bytes::from(
-        CreateTemplate { url: &new_url }
-            .render()
-            .unwrap()
-            .as_bytes(),
+        CreateTemplate {
+            url: &format!("{}{}", env::var("BASE_URL").unwrap(), new_url),
+        }
+        .render()
+        .unwrap()
+        .as_bytes(),
     );
     let body = once::<Bytes, Error>(Ok(temp));
     HttpResponse::Ok()
@@ -93,7 +96,7 @@ fn create(
 
 fn main() {
     let pool = web::Data::new(
-        db::init_pool("postgres://postgres@localhost/links").expect("Failed to create pool"),
+        db::init_pool(&env::var("DATABASE_URL").unwrap()).expect("Failed to create pool"),
     );
     let data: web::Data<Mutex<HashMap<String, String>>> =
         web::Data::new(Mutex::new(HashMap::new()));
