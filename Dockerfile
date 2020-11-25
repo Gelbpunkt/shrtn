@@ -13,7 +13,7 @@ RUN echo "fn main() { }" >> src/main.rs
 RUN source $HOME/.cargo/env && \
     cargo build --release
 
-RUN rm -f target/$RUST_TARGET/release/deps/shrtn*
+RUN rm -f target/release/deps/shrtn*
 COPY ./src ./source
 RUN source $HOME/.cargo/env && \
     cargo build --release
