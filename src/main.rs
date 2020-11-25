@@ -1,20 +1,15 @@
-use actix_web::{get, http, post, web, App, HttpResponse, HttpServer};
-use askama::Template;
+use actix_web::{
+    get, http::header::LOCATION, middleware::Logger, post, web, App, HttpResponse, HttpServer,
+};
 use dashmap::DashMap;
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use serde::Deserialize;
 use std::env;
 
 mod db;
 
 const INDEX: &[u8] = include_bytes!("../templates/index.html");
-
-#[derive(Template)]
-#[template(path = "create.html")]
-struct CreateTemplate<'a> {
-    url: &'a str,
-}
+const CREATE: &str = include_str!("../templates/create.html");
 
 #[derive(Deserialize)]
 struct FormData {
@@ -26,7 +21,7 @@ async fn index() -> HttpResponse {
     HttpResponse::Ok().content_type("text/html").body(INDEX)
 }
 
-#[post("/{url}")]
+#[get("/{url}")]
 async fn get_url(
     cache: web::Data<DashMap<String, String>>,
     pool: web::Data<db::PgPool>,
@@ -44,7 +39,7 @@ async fn get_url(
         Some(v) => v.value().to_owned(),
     };
     HttpResponse::Found()
-        .header(http::header::LOCATION, target)
+        .header(LOCATION, target)
         .finish()
         .into_body()
 }
@@ -66,23 +61,25 @@ async fn create(
     }
     cache.insert(new_url.clone(), url.clone());
     db::create_link(new_url.clone(), url.clone(), pool).await;
-    let temp = CreateTemplate {
-        url: &format!("{}{}", env::var("BASE_URL").unwrap(), new_url),
-    }
-    .render()
-    .unwrap();
-    HttpResponse::Ok().content_type("text/html").body(temp)
+    let text = CREATE.replace(
+        "URL_GOES_HERE",
+        &format!("{}{}", env::var("BASE_URL").unwrap(), new_url),
+    );
+    HttpResponse::Ok().content_type("text/html").body(text)
 }
 
 #[actix_web::main]
 async fn main() {
+    env::set_var("RUST_LOG", "actix_web=debug,actix_server=info");
+    env_logger::init();
     let data: web::Data<DashMap<String, String>> = web::Data::new(DashMap::new());
     let pool = db::init_pool(&env::var("DATABASE_URL").unwrap())
         .await
         .unwrap();
     HttpServer::new(move || {
         App::new()
-            .data(data.clone())
+            .wrap(Logger::default())
+            .app_data(data.clone())
             .data(pool.clone())
             .service(index)
             .service(get_url)

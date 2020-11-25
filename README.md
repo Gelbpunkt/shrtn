@@ -11,7 +11,7 @@ It is written in Rust using Actix for maximum performance and is cached. The bac
 ```
 podman build -t shrtn:latest .
 podman pod create -n shrtn -p 4445:4445
-podman run --rm --name psql -d --pod shrtn postgresql:11-alpine
+podman run --rm --name psql -d --pod shrtn postgresql:13-alpine
 podman exec -it psql ash
 su postgres
 createdb links

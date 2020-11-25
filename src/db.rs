@@ -26,13 +26,8 @@ pub async fn create_link(from: String, to: String, pool: Data<PgPool>) {
 
 pub async fn get_link(from: String, pool: Data<PgPool>) -> Option<String> {
     let conn = pool.get().await.unwrap();
-    let rows = conn
-        .query_one(r#"SELECT "to" FROM links WHERE "from"=$1;"#, &[&from])
+    conn.query_one(r#"SELECT "to" FROM links WHERE "from"=$1;"#, &[&from])
         .await
-        .unwrap();
-    if rows.len() > 0 {
-        Some(rows.get(0))
-    } else {
-        None
-    }
+        .ok()
+        .map_or(None, |r| r.get(0))
 }
