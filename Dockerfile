@@ -1,24 +1,25 @@
-FROM alpine:3.10.2
+FROM alpine:edge AS builder
 
-WORKDIR /shrtn
+RUN apk add --no-cache gcc musl-dev curl && \
+    curl -sSf https://sh.rustup.rs | sh -s -- --profile minimal --default-toolchain nightly -y
 
-RUN apk add --no-cache rust cargo --repository http://dl-cdn.alpinelinux.org/alpine/edge/community
-RUN cargo install cargo-build-deps
+WORKDIR /build
 
 # hacky for caching build dependencies
-COPY ./Cargo.toml ./Cargo.lock ./
+COPY Cargo.toml Cargo.lock ./
+
 RUN mkdir src/
 RUN echo "fn main() { }" >> src/main.rs
-RUN cargo build-deps --release
+RUN source $HOME/.cargo/env && \
+    cargo build --release
 
-COPY . .
+RUN rm -f target/$RUST_TARGET/release/deps/shrtn*
+COPY ./src ./source
+RUN source $HOME/.cargo/env && \
+    cargo build --release
 
-RUN apk add --no-cache postgresql-dev
-RUN cargo build --release
+FROM alpine:edge
 
-# make image smaller
-RUN apk del rust cargo && \
-    apk add libgcc
+COPY --from=builder /build/target/release/shrtn /usr/bin/shrtn
 
-ENV RUST_BACKTRACE=full
-CMD ./target/release/shrtn
+CMD /usr/bin/shrtn

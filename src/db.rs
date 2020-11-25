@@ -1,27 +1,38 @@
-use crate::model::{Link, NewLink};
-use diesel::pg::PgConnection;
-use diesel::r2d2::{ConnectionManager, Pool, PoolError, PooledConnection};
-use std::ops::Deref;
+use actix_web::web::Data;
+use bb8_postgres::{
+    bb8::Pool,
+    tokio_postgres::{Config, Error, NoTls},
+    PostgresConnectionManager,
+};
+use std::str::FromStr;
 
-pub type PgPool = Pool<ConnectionManager<PgConnection>>;
-type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
+pub type PgPool = Pool<PostgresConnectionManager<NoTls>>;
 
-pub fn init_pool(database_url: &str) -> Result<PgPool, PoolError> {
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-    Pool::builder().build(manager)
+pub async fn init_pool(database_url: &str) -> Result<PgPool, Error> {
+    let config = Config::from_str(database_url)?;
+    let manager = PostgresConnectionManager::new(config, NoTls);
+    Pool::builder().build(manager).await
 }
 
-fn get_conn(pool: &PgPool) -> Result<PgPooledConnection, &'static str> {
-    pool.get().map_err(|_| "Can't get connection")
+pub async fn create_link(from: String, to: String, pool: Data<PgPool>) {
+    let conn = pool.get().await.unwrap();
+    conn.execute(
+        r#"INSERT INTO links ("from", "to") VALUES ($1, $2);"#,
+        &[&from, &to],
+    )
+    .await
+    .unwrap();
 }
 
-pub fn create_link(from: String, to: String, pool: &PgPool) -> Result<(), &'static str> {
-    let new_link = NewLink { from: from, to: to };
-    Link::insert(new_link, get_conn(pool)?.deref())
-        .map(|_| ())
-        .map_err(|_| "Can't insert link")
-}
-
-pub fn get_link(from: String, pool: &PgPool) -> Result<Link, diesel::result::Error> {
-    Link::get(from, get_conn(pool).unwrap().deref()) //.map_err(|_| "Can't select")
+pub async fn get_link(from: String, pool: Data<PgPool>) -> Option<String> {
+    let conn = pool.get().await.unwrap();
+    let rows = conn
+        .query_one(r#"SELECT "to" FROM links WHERE "from"=$1;"#, &[&from])
+        .await
+        .unwrap();
+    if rows.len() > 0 {
+        Some(rows.get(0))
+    } else {
+        None
+    }
 }
