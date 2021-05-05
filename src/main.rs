@@ -35,7 +35,7 @@ async fn get_url(
 
     if let Some(url) = result {
         HttpResponse::Found()
-            .header(LOCATION, url)
+            .append_header((LOCATION, url))
             .finish()
             .into_body()
     } else {
@@ -48,7 +48,11 @@ async fn create(
     db: web::Data<Addr<redis_actor::RedisActor>>,
     form: web::Form<FormData>,
 ) -> HttpResponse {
-    let rand_string: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
+    let rand_string: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
     let url = &form.url;
     let new_url = {
         if url.matches("/").count() > 2 && url.split("/").last().unwrap().matches(".").count() > 0 {
