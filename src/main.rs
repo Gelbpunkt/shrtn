@@ -1,12 +1,10 @@
-use actix::{Actor, Addr};
 use actix_web::{
     get, http::header::LOCATION, middleware::Logger, post, web, App, HttpResponse, HttpServer,
 };
+use bb8_redis::{bb8, redis::cmd, RedisConnectionManager};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use serde::Deserialize;
 use std::env;
-
-mod redis_actor;
 
 const INDEX: &[u8] = include_bytes!("../templates/index.html");
 const CREATE: &str = include_str!("../templates/create.html");
@@ -23,14 +21,15 @@ async fn index() -> HttpResponse {
 
 #[get("/{url}")]
 async fn get_url(
-    db: web::Data<Addr<redis_actor::RedisActor>>,
+    db: web::Data<bb8::Pool<RedisConnectionManager>>,
     path: web::Path<String>,
 ) -> HttpResponse {
     let redis_key = format!("shrtn:{}", path);
-    let result = db
-        .send(redis_actor::GetCommand(redis_key))
+    let mut conn = db.get().await.unwrap();
+    let result: Option<String> = cmd("GET")
+        .arg(redis_key)
+        .query_async(&mut *conn)
         .await
-        .unwrap()
         .unwrap();
 
     if let Some(url) = result {
@@ -45,7 +44,7 @@ async fn get_url(
 
 #[post("/")]
 async fn create(
-    db: web::Data<Addr<redis_actor::RedisActor>>,
+    db: web::Data<bb8::Pool<RedisConnectionManager>>,
     form: web::Form<FormData>,
 ) -> HttpResponse {
     let rand_string: String = thread_rng()
@@ -63,9 +62,12 @@ async fn create(
         }
     };
     let redis_key = format!("shrtn:{}", &new_url);
-    db.send(redis_actor::SetCommand(redis_key, url.clone()))
+    let mut conn = db.get().await.unwrap();
+    let _: () = cmd("SET")
+        .arg(redis_key)
+        .arg(url)
+        .query_async(&mut *conn)
         .await
-        .unwrap()
         .unwrap();
     let text = CREATE.replace(
         "URL_GOES_HERE",
@@ -79,13 +81,16 @@ async fn main() {
     env::set_var("RUST_LOG", "actix_web=debug,actix_server=info");
     env_logger::init();
 
-    let actor = redis_actor::RedisActor::new(&env::var("DATABASE_URL").unwrap()).await;
-    let addr = actor.start();
+    let manager = RedisConnectionManager::new(
+        env::var("DATABASE_URL").unwrap_or_else(|_| String::from("redis://localhost")),
+    )
+    .unwrap();
+    let pool = bb8::Pool::builder().build(manager).await.unwrap();
 
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
-            .data(addr.clone())
+            .data(pool.clone())
             .service(index)
             .service(get_url)
             .service(create)

@@ -7,12 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix = { version = "0.11", default-features = false, features = ["macros"] }
 actix-web = { version = "4.0.0-beta.6", default-features = false }
 env_logger = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 rand =  "0.8"
-redis = { version = "0.20", default-features = false, features = ["tokio-comp"] }
+bb8-redis = { version = "0.9", default-features = false }
 
 [profile.release]
 codegen-units = 1
